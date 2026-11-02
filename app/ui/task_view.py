@@ -1,10 +1,14 @@
-"""Today's task view with status controls, resources, and notes."""
+"""Today's task view with status controls, resources, code runner, and notes."""
+import subprocess
+import sys
+from pathlib import Path
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton,
-    QTextEdit, QScrollArea, QSizePolicy, QGridLayout,
+    QTextEdit, QPlainTextEdit, QScrollArea, QSizePolicy, QGridLayout,
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import Qt, Signal, QProcess
+from PySide6.QtGui import QDesktopServices, QFont, QColor, QTextCharFormat
 from PySide6.QtCore import QUrl
 
 from app.ui.styles import (
@@ -196,6 +200,71 @@ class TaskView(QWidget):
 
         self._main.addWidget(res_frame)
 
+        # Code Runner
+        code_frame = QFrame()
+        code_frame.setStyleSheet(card_frame_style())
+        code_layout = QVBoxLayout(code_frame)
+        code_layout.setContentsMargins(20, 16, 20, 16)
+        code_layout.setSpacing(8)
+
+        code_header = QHBoxLayout()
+        code_title = QLabel("Code Runner")
+        code_title.setStyleSheet(f"font-size: 14px; font-weight: 600; background: transparent;")
+        code_header.addWidget(code_title)
+        code_header.addStretch()
+
+        self._run_btn = QPushButton("Run")
+        self._run_btn.setProperty("class", "success")
+        self._run_btn.setFixedWidth(100)
+        self._run_btn.clicked.connect(self._run_code)
+        code_header.addWidget(self._run_btn)
+
+        self._clear_btn = QPushButton("Clear Output")
+        self._clear_btn.setFixedWidth(110)
+        self._clear_btn.clicked.connect(lambda: self._output_area.clear())
+        code_header.addWidget(self._clear_btn)
+
+        code_layout.addLayout(code_header)
+
+        self._code_edit = QPlainTextEdit()
+        self._code_edit.setPlaceholderText("# Write your Python code here and click Run...")
+        self._code_edit.setFont(QFont("Consolas", 11))
+        self._code_edit.setMinimumHeight(150)
+        self._code_edit.setStyleSheet(f"""
+            QPlainTextEdit {{
+                background-color: #0d1117;
+                color: #c9d1d9;
+                border: 1px solid {BORDER_COLOR};
+                border-radius: 6px;
+                padding: 8px;
+                font-family: Consolas, "Courier New", monospace;
+            }}
+        """)
+        code_layout.addWidget(self._code_edit)
+
+        output_label = QLabel("Output:")
+        output_label.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 12px; background: transparent; margin-top: 4px;")
+        code_layout.addWidget(output_label)
+
+        self._output_area = QPlainTextEdit()
+        self._output_area.setReadOnly(True)
+        self._output_area.setFont(QFont("Consolas", 10))
+        self._output_area.setMinimumHeight(100)
+        self._output_area.setMaximumHeight(250)
+        self._output_area.setStyleSheet(f"""
+            QPlainTextEdit {{
+                background-color: #0d1117;
+                color: #58a6ff;
+                border: 1px solid {BORDER_COLOR};
+                border-radius: 6px;
+                padding: 8px;
+                font-family: Consolas, "Courier New", monospace;
+            }}
+        """)
+        code_layout.addWidget(self._output_area)
+
+        self._main.addWidget(code_frame)
+
         # Notes
         notes_frame = QFrame()
         notes_frame.setStyleSheet(card_frame_style())
@@ -342,3 +411,38 @@ class TaskView(QWidget):
         if self._current_day:
             text = self._notes_edit.toPlainText()
             self.db.save_note(self._current_day, text, "")
+
+    def _run_code(self):
+        code = self._code_edit.toPlainText().strip()
+        if not code:
+            self._output_area.setPlainText("No code to run.")
+            return
+
+        self._run_btn.setEnabled(False)
+        self._run_btn.setText("Running...")
+        self._output_area.setPlainText("")
+
+        python_exe = sys.executable
+        try:
+            result = subprocess.run(
+                [python_exe, "-c", code],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                cwd=str(Path.home()),
+            )
+            output = ""
+            if result.stdout:
+                output += result.stdout
+            if result.stderr:
+                output += result.stderr
+            if not output:
+                output = "(No output)"
+            self._output_area.setPlainText(output)
+        except subprocess.TimeoutExpired:
+            self._output_area.setPlainText("Error: Code execution timed out (15s limit).")
+        except Exception as e:
+            self._output_area.setPlainText(f"Error: {e}")
+        finally:
+            self._run_btn.setEnabled(True)
+            self._run_btn.setText("Run")
