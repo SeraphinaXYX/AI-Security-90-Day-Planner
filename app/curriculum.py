@@ -5,9 +5,11 @@ across five phases: Foundations, AI Engineering, AI Security, Portfolio
 Research Project, and Career Preparation.
 """
 
+from app.code_exercises import get_code_exercises
+
 
 def get_curriculum():
-    return [
+    days = [
         # ── PHASE 1: Security & Engineering Foundations (Days 1-20) ──
         {
             "day": 1,
@@ -1998,3 +2000,10 @@ def get_curriculum():
             "reflection_prompt": "You started 90 days ago with an idea. What can you do now that you couldn't then?"
         },
     ]
+    exercises = get_code_exercises()
+    for item in days:
+        day_num = item["day"]
+        if day_num in exercises:
+            item["starter_code"] = exercises[day_num].get("starter_code", "")
+            item["solution_code"] = exercises[day_num].get("solution_code", "")
+    return days

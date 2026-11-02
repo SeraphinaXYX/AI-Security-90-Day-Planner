@@ -224,6 +224,17 @@ class TaskView(QWidget):
         self._clear_btn.clicked.connect(lambda: self._output_area.clear())
         code_header.addWidget(self._clear_btn)
 
+        self._reset_code_btn = QPushButton("Reset Code")
+        self._reset_code_btn.setFixedWidth(100)
+        self._reset_code_btn.clicked.connect(self._reset_starter_code)
+        code_header.addWidget(self._reset_code_btn)
+
+        self._solution_btn = QPushButton("Show Solution")
+        self._solution_btn.setFixedWidth(120)
+        self._solution_btn.clicked.connect(self._toggle_solution)
+        code_header.addWidget(self._solution_btn)
+        self._showing_solution = False
+
         code_layout.addLayout(code_header)
 
         self._code_edit = QPlainTextEdit()
@@ -395,6 +406,14 @@ class TaskView(QWidget):
             no_res.setStyleSheet(f"color: {TEXT_MUTED}; background: transparent;")
             self._resources_container.addWidget(no_res)
 
+        # Load starter code into editor
+        starter = task.get("starter_code", "")
+        if starter and not self._code_edit.toPlainText().strip():
+            self._code_edit.setPlainText(starter)
+        self._showing_solution = False
+        self._solution_btn.setText("Show Solution")
+        self._output_area.clear()
+
         # Notes
         note = self.db.get_note(day)
         self._notes_edit.blockSignals(True)
@@ -446,3 +465,31 @@ class TaskView(QWidget):
         finally:
             self._run_btn.setEnabled(True)
             self._run_btn.setText("Run")
+
+    def _reset_starter_code(self):
+        if self._current_day:
+            task = self.db.get_task(self._current_day)
+            starter = task.get("starter_code", "") if task else ""
+            self._code_edit.setPlainText(starter)
+            self._showing_solution = False
+            self._solution_btn.setText("Show Solution")
+
+    def _toggle_solution(self):
+        if not self._current_day:
+            return
+        task = self.db.get_task(self._current_day)
+        if not task:
+            return
+        solution = task.get("solution_code", "")
+        if not solution:
+            self._output_area.setPlainText("This day has no solution code.")
+            return
+        if self._showing_solution:
+            starter = task.get("starter_code", "")
+            self._code_edit.setPlainText(starter)
+            self._solution_btn.setText("Show Solution")
+            self._showing_solution = False
+        else:
+            self._code_edit.setPlainText(solution)
+            self._solution_btn.setText("Hide Solution")
+            self._showing_solution = True

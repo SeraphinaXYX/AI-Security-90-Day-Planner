@@ -50,6 +50,8 @@ class Database:
                     deliverable TEXT NOT NULL,
                     advanced_task TEXT NOT NULL DEFAULT '',
                     reflection_prompt TEXT NOT NULL DEFAULT '',
+                    starter_code TEXT NOT NULL DEFAULT '',
+                    solution_code TEXT NOT NULL DEFAULT '',
                     status TEXT NOT NULL DEFAULT 'pending',
                     completed_at TEXT,
                     scheduled_date TEXT
@@ -114,8 +116,9 @@ class Database:
                     """INSERT OR IGNORE INTO tasks
                        (day, phase, phase_name, topic, concepts, exercise,
                         resources, estimated_minutes, deliverable,
-                        advanced_task, reflection_prompt, scheduled_date)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        advanced_task, reflection_prompt,
+                        starter_code, solution_code, scheduled_date)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         item["day"],
                         item["phase"],
@@ -128,6 +131,8 @@ class Database:
                         item["deliverable"],
                         item.get("advanced_task", ""),
                         item.get("reflection_prompt", ""),
+                        item.get("starter_code", ""),
+                        item.get("solution_code", ""),
                         scheduled,
                     ),
                 )
